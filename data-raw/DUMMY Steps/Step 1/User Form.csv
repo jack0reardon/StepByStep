@@ -1,0 +1,4 @@
+variable;data_type;default_value;min;max;step
+Name;character;;;
+Age;numeric;35;1;110;1
+Weight;numeric;70;20;300;0.5

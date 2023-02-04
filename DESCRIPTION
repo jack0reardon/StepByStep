@@ -1,0 +1,17 @@
+Package: StepByStep
+Title: RShiny scaffolding that takes the user through a logical sequence of steps
+Version: 1.0
+Authors@R: 
+    person("Jack", "Reardon", , role = c("aut", "cre"))
+Description: See README.md
+License: GNU v3
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.2.1
+Depends: 
+    R (>= 2.10)
+LazyData: true
+Imports: 
+    dplyr,
+    shiny,
+    shinydashboard
