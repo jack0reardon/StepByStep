@@ -1,5 +1,9 @@
 app_server <- function(input, output, session) {
   
+  print(1)
+  print(environment())
+  print(2)
+  
   #### 1 Reactive values ####
   
   on_load <- shiny::reactiveVal("dummy")
@@ -29,6 +33,13 @@ app_server <- function(input, output, session) {
   })
   
   for (step_number in 1:length(DUMMY_PROJECT$STEPS)) {
-    DUMMY_PROJECT$STEPS[[step_number]]$SERVER_FUNCTION(input, output, session)
+    for (server_function in DUMMY_PROJECT$STEPS[[step_number]]$SERVER_FUNCTIONS) {
+      server_function(input, output, session)
+    }
   }
+  
+  shiny::observeEvent(input[["step_1_to_step_2_AB"]], {
+    current_step(2)
+    # print(2222)
+  })
 }

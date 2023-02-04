@@ -10,10 +10,6 @@ app_ui <- function() {
         shiny::hr()
       )
     ),
-    shiny::mainPanel(
-      width = 6,
-      shiny::h2("Graph of response variable by selected x-axis variable"),
-      shiny::uiOutput(CURRENT_STEP_UI)
-    )
+    shiny::uiOutput(CURRENT_STEP_UI)
   )
 }

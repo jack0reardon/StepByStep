@@ -1,7 +1,9 @@
-get_form_UI_from_specification_file <- function(file_name, form_name) {
+get_form_from_specification_file <- function(file_name, form_name, save_form_UI_ID) {
   DF <- read.csv.default(file_name)
   
   the_form <- list()
+  
+  the_form$name <- form_name
   
   for (DF_entry in 1:nrow(DF)) {
     the_variable <- DF[DF_entry, "variable"]
@@ -12,7 +14,7 @@ get_form_UI_from_specification_file <- function(file_name, form_name) {
     the_max <- data_type_function(DF[DF_entry, "max"])
     the_step <- data_type_function(DF[DF_entry, "step"])
     
-    UI_element_id <- get_UI_element_ID(form_name, snakecase::to_snake_case(the_variable))
+    UI_element_id <- get_UI_element_ID(form_name, the_variable)
     
     if (the_data_type == "character") {
       the_element <- shiny::textInput(
@@ -22,16 +24,19 @@ get_form_UI_from_specification_file <- function(file_name, form_name) {
       the_element <- shiny::numericInput(
         UI_element_id, label = the_variable, value = the_default_value, min = the_min, max = the_max, step = the_step
       )
+    } else if (the_data_type == "date") {
+      the_element <- shiny::dateInput(
+        UI_element_id, label = the_variable
+      )
     } else {
-      the_element <- shiny::helpText("Jack")
+      stop(paste0("Error: Form ", file_name, " has unrecognised data type ", the_data_type))
     }
     
-    the_form[[DF_entry]] <- the_element
+    the_form$UI[[DF_entry]] <- the_element
+    the_form$variables[[DF_entry]] <- the_variable
   }
   
-  the_form[[SUBMIT_FORM_ID]] <- shiny::actionButton(
-    get_UI_element_ID(form_name, SUBMIT_FORM_ID), label = "Submit"
-  )
+  the_form$save_function <- get_save_form_server_function(the_form, save_form_UI_ID)
   
   return(the_form)
 }
@@ -80,16 +85,31 @@ as_character <- function(x) {
 }
 
 get_UI_element_ID <- function(parent_ID, element_ID) {
-  return(paste(parent_ID, element_ID, sep = "-"))
+  return(paste(snakecase::to_snake_case(parent_ID), snakecase::to_snake_case(element_ID), sep = "-"))
 }
 
 
-submit_form <- function(form_name) {
+get_save_form_server_function <- function(form, save_form_UI_ID) {
+  # Force evaluation of this dynamic argument the the dynamic function returned
+  force(form)
+  
   return(function(input, output, session) {
-    list(
-      shiny::observeEvent(input[[get_UI_element_ID(form_name, SUBMIT_FORM_ID)]], {
-        print(1)
-      })
-    )
+    shiny::observeEvent(input[[save_form_UI_ID]], {
+      variables <- sapply(form$variables, function(x) { x })
+      
+      values <- sapply(form$variables,
+                       function(variable, form_name) {
+                         as.character(input[[get_UI_element_ID(form_name, variable)]])
+                       },
+                       form$name)
+      
+      
+      form_data <- data.frame(variable = variables, value = values)
+      
+      write.csv(form_data,
+                paste0(form$name, ".csv"),
+                row.names = FALSE,
+                quote = FALSE)
+    })
   })
 }

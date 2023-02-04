@@ -1,8 +1,8 @@
 # Step By Step
-### RShiny scaffolding that takes the user through a logical sequence of steps
+### RShiny scaffolding that takes a user through a logical sequence of steps
 
 Applications:
-1. Data processing with user input required at each stage
+1. Organised data cleansing exercise with user input required at each stage
 2. Guiding user through series of insights in their data
 3. Implementing a decision tree for formalising business decisions (eg. customer )
 
