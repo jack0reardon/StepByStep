@@ -1,15 +1,10 @@
 app_ui <- function() {
   shiny::fluidPage(
-    shiny::titlePanel(shiny::textOutput(SPEC_PROJECT_TITLE_UI)),
-    shiny::helpText(shiny::textOutput(SPEC_SHORT_PROJECT_DESCRIPTION_UI)),
+    shiny::titlePanel(shiny::textOutput(SPEC_PROJECT_TITLE_UI_ID)),
+    shiny::helpText(shiny::textOutput(VERSION_UI_ID)),
+    shiny::h4(shiny::textOutput(SPEC_SHORT_PROJECT_DESCRIPTION_UI_ID)),
     shiny::hr(),
-    shiny::sidebarPanel(
-      width = 3,
-      shiny::div(
-        "Hu",
-        shiny::hr()
-      )
-    ),
-    shiny::uiOutput(CURRENT_STEP_UI)
+    shiny::h1(shiny::textOutput(CURRENT_STEP_NAME_UI_ID)),
+    shiny::uiOutput(CURRENT_STEP_UI_ID),
   )
 }

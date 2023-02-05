@@ -8,28 +8,36 @@ create_shiny_ID <- function(ID) {
 #### Meta information ####
 
 PACKAGE_NAME <- "stepbystep"
-VERSION_NUMBER <- "v1.0"
+PACKAGE_VERSION_NUMBER <- "v1.0"
 LOG_FILE_NAME <- "log.csv"
+CHOICES_SEPARATOR <- ":"
 
 
 #### UI Elements ####
 
 # SPEC = "Specification" = Variables that must be defined in the specification file (else it will error)
-create_shiny_ID("SPEC_PROJECT_TITLE_UI")
-create_shiny_ID("SPEC_SHORT_PROJECT_DESCRIPTION_UI")
-create_shiny_ID("CURRENT_STEP_UI")
-create_shiny_ID("SUBMIT_FORM_ID")
+create_shiny_ID("SPEC_PROJECT_TITLE_UI_ID")
+create_shiny_ID("SPEC_SHORT_PROJECT_DESCRIPTION_UI_ID")
+create_shiny_ID("CURRENT_STEP_NAME_UI_ID")
+create_shiny_ID("CURRENT_STEP_UI_ID")
+create_shiny_ID("VERSION_UI_ID")
 
+
+STANDARD_LAUNCH_PAGE_FORM_NAME <- "standard_launch_page"
 
 
 usethis::use_data(PACKAGE_NAME,
-                  VERSION_NUMBER,
+                  PACKAGE_VERSION_NUMBER,
                   LOG_FILE_NAME,
+                  CHOICES_SEPARATOR,
                   
-                  SPEC_PROJECT_TITLE_UI,
-                  SPEC_SHORT_PROJECT_DESCRIPTION_UI,
-                  CURRENT_STEP_UI,
-                  SUBMIT_FORM_ID,
+                  SPEC_PROJECT_TITLE_UI_ID,
+                  SPEC_SHORT_PROJECT_DESCRIPTION_UI_ID,
+                  CURRENT_STEP_NAME_UI_ID,
+                  CURRENT_STEP_UI_ID,
+                  VERSION_UI_ID,
+                  
+                  STANDARD_LAUNCH_PAGE_FORM_NAME,
                   
                   internal = TRUE,
                   overwrite = TRUE)

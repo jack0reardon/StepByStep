@@ -1,0 +1,4 @@
+variable;data_type;value
+project_title;character;Dummy Title
+short_project_description;character;This is a dummy description for the dummy project.
+version;character;v1.0
