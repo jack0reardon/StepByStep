@@ -39,3 +39,4 @@ vignettes/*.pdf
 .Renviron
 analyst_details.csv
 project_details.csv
+standard_launch_page.csv

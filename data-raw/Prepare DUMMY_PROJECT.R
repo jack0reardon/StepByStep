@@ -20,7 +20,7 @@ UI_step_1 <- shiny::mainPanel(
 )
 
 server_functions_step_1 <- list(analyst_details_form$save_function,
-                                function(input, output, server, current_step, prior_attempts) {
+                                function(input, output, server, current_attempt, current_step, selected_project) {
                                   shiny::observeEvent(input[["step_1_to_step_2_AB"]], {
                                     current_step("step_2")
                                   })
@@ -46,7 +46,7 @@ server_functions_step_2 <- list(project_details_form$save_function)
 #### Put it all together ####
 
 DUMMY_PROJECT$STEPS <- list(
-  launch_page = get_standard_launch_page("step_1"),
+  launch_page = get_standard_launch_page(next_step = "step_1"), # Needs to match STANDARD_LAUNCH_PAGE_STEP_NAME...
   step_1 = list(name = "Analyst Details", UI = UI_step_1, server_functions = server_functions_step_1),
   step_2 = list(name = "Project Details", UI = UI_step_2, server_functions = server_functions_step_2)
 )

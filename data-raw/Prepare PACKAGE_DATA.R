@@ -11,6 +11,8 @@ PACKAGE_NAME <- "stepbystep"
 PACKAGE_VERSION_NUMBER <- "v1.0"
 LOG_FILE_NAME <- "log.csv"
 CHOICES_SEPARATOR <- ":"
+ATTEMPTS_DIRECTORY <- "./inst/Attempts"
+STANDARD_LAUNCH_PAGE_STEP_NAME <- "launch_page"
 
 
 #### UI Elements ####
@@ -30,6 +32,8 @@ usethis::use_data(PACKAGE_NAME,
                   PACKAGE_VERSION_NUMBER,
                   LOG_FILE_NAME,
                   CHOICES_SEPARATOR,
+                  ATTEMPTS_DIRECTORY,
+                  STANDARD_LAUNCH_PAGE_STEP_NAME,
                   
                   SPEC_PROJECT_TITLE_UI_ID,
                   SPEC_SHORT_PROJECT_DESCRIPTION_UI_ID,
