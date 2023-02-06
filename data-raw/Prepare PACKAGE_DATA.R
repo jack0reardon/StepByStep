@@ -13,6 +13,7 @@ LOG_FILE_NAME <- "log.csv"
 CHOICES_SEPARATOR <- ":"
 ATTEMPTS_DIRECTORY <- "./inst/Attempts"
 STANDARD_LAUNCH_PAGE_STEP_NAME <- "launch_page"
+DO_NOT_LOAD_PRIOR_ATTEMPT <- "N/A"
 
 
 #### UI Elements ####
@@ -34,6 +35,7 @@ usethis::use_data(PACKAGE_NAME,
                   CHOICES_SEPARATOR,
                   ATTEMPTS_DIRECTORY,
                   STANDARD_LAUNCH_PAGE_STEP_NAME,
+                  DO_NOT_LOAD_PRIOR_ATTEMPT,
                   
                   SPEC_PROJECT_TITLE_UI_ID,
                   SPEC_SHORT_PROJECT_DESCRIPTION_UI_ID,

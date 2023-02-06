@@ -1,5 +1,5 @@
 variable;data_type;default_value;is_function;min;max;step
 Analyst Name;character;;;;
 Date of Analysis;date;;;;
-Attempt Name;character;;;;
+Attempt Name;character;get_proposed_attempt_name();TRUE;;
 Load Prior Attempt;select;get_prior_attempts_for_form();TRUE;;

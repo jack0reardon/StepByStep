@@ -16,15 +16,11 @@ UI_step_1 <- shiny::mainPanel(
   shiny::helpText("Enter your information here and then click next."),
   analyst_details_form$UI,
   shiny::hr(),
+  shiny::actionButton("step_1_to_launch_page_AB", "Previous"),
   shiny::actionButton("step_1_to_step_2_AB", "Next") 
 )
 
-server_functions_step_1 <- list(analyst_details_form$save_function,
-                                function(input, output, server, current_attempt, current_step, selected_project) {
-                                  shiny::observeEvent(input[["step_1_to_step_2_AB"]], {
-                                    current_step("step_2")
-                                  })
-                                })
+server_functions_step_1 <- list(analyst_details_form$server_save_function)
 
 
 #### Step 2 ####
@@ -34,10 +30,11 @@ project_details_form <- get_form_from_specification_file(file_name = "./data-raw
                                                          save_form_UI_ID = "save_project_details_AB")
 
 UI_step_2 <- list(project_details_form$UI,
+                  shiny::actionButton("step_2_to_step_1_AB", "Previous"),
                   shiny::actionButton("save_project_details_AB", "Save Project Details"))
 
 
-server_functions_step_2 <- list(project_details_form$save_function)
+server_functions_step_2 <- list(project_details_form$server_save_function)
 
 
 
@@ -46,9 +43,12 @@ server_functions_step_2 <- list(project_details_form$save_function)
 #### Put it all together ####
 
 DUMMY_PROJECT$STEPS <- list(
-  launch_page = get_standard_launch_page(next_step = "step_1"), # Needs to match STANDARD_LAUNCH_PAGE_STEP_NAME...
-  step_1 = list(name = "Analyst Details", UI = UI_step_1, server_functions = server_functions_step_1),
-  step_2 = list(name = "Project Details", UI = UI_step_2, server_functions = server_functions_step_2)
+  step_1 = list(name = "Analyst Details", UI = UI_step_1, server_functions = server_functions_step_1,
+                next_step_UI_ID = "step_1_to_step_2_AB", next_step = "step_2",
+                previous_step_UI_ID = "step_1_to_launch_page_AB", previous_step = STANDARD_LAUNCH_PAGE_STEP_NAME),
+  step_2 = list(name = "Project Details", UI = UI_step_2, server_functions = server_functions_step_2,
+                next_UI_ID = NULL, next_step = NULL,
+                previous_step_UI_ID = "step_2_to_step_1_AB", previous_step = "step_1")
 )
 
 usethis::use_data(DUMMY_PROJECT,

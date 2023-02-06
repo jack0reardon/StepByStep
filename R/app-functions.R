@@ -49,7 +49,7 @@ get_form_from_specification_file <- function(file_name, form_name, save_form_UI_
     the_form$variables[[DF_entry]] <- the_variable
   }
   
-  the_form$save_function <- get_save_form_server_function(the_form, save_form_UI_ID)
+  the_form$server_save_function <- get_save_form_server_function(the_form, save_form_UI_ID)
   
   return(the_form)
 }
@@ -105,7 +105,7 @@ get_UI_element_ID <- function(parent_ID, element_ID) {
 
 
 get_save_form_server_function <- function(form, save_form_UI_ID) {
-  # Force evaluation of this dynamic argument the the dynamic function returned
+  # Force evaluation of this dynamic argument to the dynamic function returned
   force(form)
   
   return(function(input, output, session, current_attempt, current_step, selected_project) {
@@ -187,7 +187,6 @@ get_choices <- function(x) {
 
 
 get_standard_launch_page <- function(next_step) {
-  # Force evaluation of this dynamic argument the the dynamic function returned
   force(next_step)
   
   next_step_UI_ID <- get_UI_element_ID(STANDARD_LAUNCH_PAGE_FORM_NAME, "next")
@@ -209,7 +208,7 @@ get_standard_launch_page <- function(next_step) {
       shiny::actionButton(refresh_prior_attempts_AB_ID, "Refresh Prior Attempts") ,
       shiny::actionButton(next_step_UI_ID, "Next")
     ),
-    server_functions = list(standard_launch_page_form$save_function,
+    server_functions = list(standard_launch_page_form$server_save_function,
                             function(input, output, session, current_attempt, current_step, selected_project) {
                               shiny::observeEvent(input[[next_step_UI_ID]], {
                                 meta_data <- tibble::tribble(
@@ -217,18 +216,23 @@ get_standard_launch_page <- function(next_step) {
                                   "date_time", "character", Sys.time()
                                 )
                                 
-                                print(1)
-                                
                                 attempt_name <- input[[get_UI_element_ID(STANDARD_LAUNCH_PAGE_FORM_NAME, "Attempt Name")]]
                                 step_directory <- get_step_directory(attempt_name, current_step())
                                 write.csv.default(meta_data, paste0(step_directory, "meta_data.csv"))
                                 
-                                print(2)
+                                # Load prior attempt
+                                if (input[[get_UI_element_ID(STANDARD_LAUNCH_PAGE_FORM_NAME, "Load Prior Attempt")]] != DO_NOT_LOAD_PRIOR_ATTEMPT) {
+                                  the_project <- selected_project()
+                                  if (is.null(the_project$STEPS[[current_step()]]$saved_step)) {
+                                    the_project$STEPS[[current_step()]]$saved_step <- list()
+                                  }
+                                  the_project$STEPS[[current_step()]]$saved_step$meta_data <- meta_data
+                                  
+                                  selected_project(the_project)
+                                }
                                 
                                 # selected_project()$STEPS[[current_step()]]$prior_steps <- list()
                                 # selected_project()$STEPS[[current_step()]]$prior_steps[[STANDARD_LAUNCH_PAGE_STEP_NAME]]
-                                
-                                print(3)
                                 
                                 current_step(next_step)
                               })
@@ -241,19 +245,27 @@ get_standard_launch_page <- function(next_step) {
                                                          choices = prior_attempts,
                                                          selected = prior_attempts[1])
                               })
-                            })
+                            }),
+    next_step_UI_ID = NULL,
+    next_step = NULL,
+    previous_step_UI_ID = NULL,
+    previous_step = NULL
   )
+}
+
+get_proposed_attempt_name <- function() {
+  return(paste("Attempt", length(list.dirs(path = ATTEMPTS_DIRECTORY, full.names = FALSE, recursive = FALSE)) + 1))
 }
 
 
 get_prior_attempts <- function() {
   prior_attempts <- list.dirs(path = ATTEMPTS_DIRECTORY, full.names = FALSE, recursive = FALSE)
   
-  if (length(prior_attempts) == 0) {
-    return("")
-  } else {
-    return(prior_attempts[order(prior_attempts)]) 
+  if (length(prior_attempts) > 0) {
+    prior_attempts <- prior_attempts[order(prior_attempts)]
   }
+  
+  return(c(DO_NOT_LOAD_PRIOR_ATTEMPT, prior_attempts))
 }
 
 get_prior_attempts_for_form <- function() {
@@ -276,4 +288,8 @@ get_save_data_type_from_form_data_type <- function(form_data_type) {
   } else {
     return("")
   }
+}
+
+get_first_step <- function(steps) {
+  names(steps)[which(sapply(steps, function(x) { x$previous_step }) == STANDARD_LAUNCH_PAGE_STEP_NAME)]
 }
