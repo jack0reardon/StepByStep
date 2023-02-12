@@ -24,9 +24,12 @@ create_shiny_ID("SPEC_SHORT_PROJECT_DESCRIPTION_UI_ID")
 create_shiny_ID("CURRENT_STEP_NAME_UI_ID")
 create_shiny_ID("CURRENT_STEP_UI_ID")
 create_shiny_ID("VERSION_UI_ID")
+create_shiny_ID("FORM_NEXT_UI_ID")
+create_shiny_ID("FORM_PREVIOUS_UI_ID")
+create_shiny_ID("AB_WAS_JUST_CLICKED")
 
 
-STANDARD_LAUNCH_PAGE_FORM_NAME <- "standard_launch_page"
+STANDARD_LAUNCH_PAGE_FORM_NAME <- "Load Prior Attempt"
 
 
 usethis::use_data(PACKAGE_NAME,
@@ -42,6 +45,10 @@ usethis::use_data(PACKAGE_NAME,
                   CURRENT_STEP_NAME_UI_ID,
                   CURRENT_STEP_UI_ID,
                   VERSION_UI_ID,
+                  
+                  FORM_NEXT_UI_ID,
+                  FORM_PREVIOUS_UI_ID,
+                  AB_WAS_JUST_CLICKED,
                   
                   STANDARD_LAUNCH_PAGE_FORM_NAME,
                   
