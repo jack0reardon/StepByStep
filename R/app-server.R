@@ -4,64 +4,67 @@ app_server <- function(input, output, session) {
   
   on_load <- shiny::reactiveVal("dummy")
   has_loaded_project <- shiny::reactiveVal(FALSE)
-  selected_project <- shiny::reactiveVal(NULL)
-  current_attempt <- shiny::reactive(NULL)
-  current_step <- shiny::reactiveVal(NULL)
-  prior_attempts <- shiny::reactiveVal(get_prior_attempts())
+  project_variables <- shiny::reactiveValues(selected_project = NULL,
+                                             current_step = NULL,
+                                             prior_attempts = get_prior_attempts())
   
   
   #### 2 Reactivity ####
   
   shiny::observeEvent(on_load(), {
     the_project <- DUMMY_PROJECT
-  
+    
+
+    # Include "next" and "previous" functionality
+    lapply(the_project$STEPS,
+           function(x) {
+             next_step_was_just_clicked <- get_UI_element_ID(x$name, FORM_NEXT_UI_ID, AB_WAS_JUST_CLICKED)
+             shiny::observeEvent(project_variables[[next_step_was_just_clicked]], {
+               if (project_variables[[next_step_was_just_clicked]]) {
+                 project_variables$current_step <- x$next_step
+                 project_variables[[next_step_was_just_clicked]] <- FALSE
+               }
+             })
+           })
+    
+    lapply(the_project$STEPS,
+           function(x) {
+             previous_step_was_just_clicked <- get_UI_element_ID(x$name, FORM_PREVIOUS_UI_ID, AB_WAS_JUST_CLICKED)
+             shiny::observeEvent(project_variables[[previous_step_was_just_clicked]], {
+               if (project_variables[[previous_step_was_just_clicked]]) {
+                 project_variables$current_step <- x$previous_step
+                 project_variables[[previous_step_was_just_clicked]] <- FALSE
+               }
+             })
+           })
+    
     first_step <- get_first_step(the_project$STEPS)
     the_project$STEPS[[STANDARD_LAUNCH_PAGE_STEP_NAME]] <- get_standard_launch_page(first_step)
     
-    selected_project(the_project)
-    
-    
-    # Create next and previous functionality
-    
-    lapply(the_project$STEPS,
-           function(x) {
-             if (!is.null(x$next_step_UI_ID)) {
-               shiny::observeEvent(input[[x$next_step_UI_ID]], {
-                 current_step(x$next_step)
-               }) 
-             }
-           })
-    
-    lapply(the_project$STEPS,
-           function(x) {
-             if (!is.null(x$previous_step_UI_ID)) {
-               shiny::observeEvent(input[[x$previous_step_UI_ID]], {
-                 current_step(x$previous_step)
-               }) 
-             }
-           })
-    
-    current_step(STANDARD_LAUNCH_PAGE_STEP_NAME)
+    project_variables$selected_project <- the_project
     
     has_loaded_project(TRUE)
   })
   
   shiny::observeEvent(has_loaded_project(), {
     if (has_loaded_project()) {
-      output[[SPEC_PROJECT_TITLE_UI_ID]] <- shiny::renderText({ selected_project()$SPECIFICATION$project_title })
-      output[[VERSION_UI_ID]] <- shiny::renderText({ selected_project()$SPECIFICATION$version })
-      output[[SPEC_SHORT_PROJECT_DESCRIPTION_UI_ID]] <- shiny::renderText({ selected_project()$SPECIFICATION$short_project_description })
+      output[[SPEC_PROJECT_TITLE_UI_ID]] <- shiny::renderText({ project_variables$selected_project$SPECIFICATION$project_title })
+      output[[VERSION_UI_ID]] <- shiny::renderText({ project_variables$selected_project$SPECIFICATION$version })
+      output[[SPEC_SHORT_PROJECT_DESCRIPTION_UI_ID]] <- shiny::renderText({ project_variables$selected_project$SPECIFICATION$short_project_description })
       
-      for (step_number in 1:length(selected_project()$STEPS)) {
-        for (server_function in selected_project()$STEPS[[step_number]]$server_functions) {
-          server_function(input, output, session, current_attempt, current_step, selected_project)
+      for (step_number in 1:length(project_variables$selected_project$STEPS)) {
+        for (server_function in project_variables$selected_project$STEPS[[step_number]]$server_functions) {
+          server_function(input, output, session, project_variables)
         }
       }
+      
+      project_variables$current_step <- STANDARD_LAUNCH_PAGE_STEP_NAME
     }
   })
   
-  shiny::observeEvent(current_step(), {
-    output[[CURRENT_STEP_NAME_UI_ID]] <- shiny::renderText({ selected_project()$STEPS[[current_step()]]$name})
-    output[[CURRENT_STEP_UI_ID]] <- shiny::renderUI({ selected_project()$STEPS[[current_step()]]$UI })
+  shiny::observeEvent(project_variables$current_step, {
+    output[[CURRENT_STEP_NAME_UI_ID]] <- shiny::renderText({ project_variables$selected_project$STEPS[[project_variables$current_step]]$name})
+    output[[CURRENT_STEP_UI_ID]] <- shiny::renderUI({ project_variables$selected_project$STEPS[[project_variables$current_step]]$UI })
   })
+  
 }

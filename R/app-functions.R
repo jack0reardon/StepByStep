@@ -1,9 +1,14 @@
-get_form_from_specification_file <- function(file_name, form_name, save_form_UI_ID) {
+get_form_from_specification_file <- function(file_name,
+                                             name,
+                                             next_step,
+                                             previous_step) {
   DF <- read.csv.default(file_name)
   
   the_form <- list()
   
-  the_form$name <- form_name
+  the_form$name <- name
+  the_form$next_step <- next_step
+  the_form$previous_step <- previous_step
   
   for (DF_entry in 1:nrow(DF)) {
     the_variable <- DF[DF_entry, "variable"]
@@ -22,7 +27,9 @@ get_form_from_specification_file <- function(file_name, form_name, save_form_UI_
     the_step <- data_type_function(DF[DF_entry, "step"])
     the_choices <- get_choices(the_default_value)
     
-    UI_element_id <- get_UI_element_ID(form_name, the_variable)
+    UI_element_id <- get_UI_element_ID(name, the_variable)
+    
+    the_form$server_functions <- list()
     
     if (the_data_type == "character") {
       the_element <- shiny::textInput(UI_element_id, label = the_variable, value = the_default_value)
@@ -40,6 +47,19 @@ get_form_from_specification_file <- function(file_name, form_name, save_form_UI_
       the_element <- shiny::checkboxGroupInput(UI_element_id, label = the_variable, choices = the_choices, selected = the_choices[1])
     } else if (the_data_type == "radiobutton") {
       the_element <- shiny::radioButtons(UI_element_id, label = the_variable, choices = the_choices, selected = the_choices[1])
+    } else if (the_data_type == "file") {
+      the_element <- shiny::fileInput(UI_element_id, label = the_variable, multiple = TRUE)
+      the_form$server_functions <- append(the_form$server_functions,
+                                          function(input, output, session, project_variables) {
+                                            list(
+                                              shiny::observeEvent(input[[UI_element_id]], {
+                                                output[["jack"]] <- shiny::renderTable(input[[UI_element_id]])
+                                              }),
+                                              shiny::observeEvent(input[[UI_element_id]], {
+                                                output[["MY_TEXT"]] <- shiny::renderText(paste(readLines(input[[UI_element_id]]$datapath), collapse = "        \n"))
+                                              })
+                                            )
+                                          })
     } else {
       stop(paste0("Error: Form ", file_name, " has unrecognised data type ", the_data_type))
     }
@@ -49,7 +69,12 @@ get_form_from_specification_file <- function(file_name, form_name, save_form_UI_
     the_form$variables[[DF_entry]] <- the_variable
   }
   
-  the_form$server_save_function <- get_save_form_server_function(the_form, save_form_UI_ID)
+  the_form$UI[[length(the_form$UI) + 1]] <- shiny::hr()
+  the_form$UI[[length(the_form$UI) + 1]] <- shiny::actionButton(get_UI_element_ID(name, FORM_PREVIOUS_UI_ID), "Previous")
+  the_form$UI[[length(the_form$UI) + 1]] <- shiny::actionButton(get_UI_element_ID(name, FORM_NEXT_UI_ID), "Next")
+  
+  the_form$server_functions <- append(the_form$server_functions,
+                                      get_save_form_server_function(the_form))
   
   return(the_form)
 }
@@ -99,56 +124,54 @@ as_character <- function(x) {
   }
 }
 
-get_UI_element_ID <- function(parent_ID, element_ID) {
-  return(paste(snakecase::to_snake_case(parent_ID), snakecase::to_snake_case(element_ID), sep = "-"))
+get_UI_element_ID <- function(...) {
+  paste(sapply(list(...), snakecase::to_snake_case), collapse = "-")
 }
 
 
-get_save_form_server_function <- function(form, save_form_UI_ID) {
-  # Force evaluation of this dynamic argument to the dynamic function returned
+get_save_form_server_function <- function(form) {
+  # Force evaluation of these dynamic arguments to the dynamic function returned
   force(form)
   
-  return(function(input, output, session, current_attempt, current_step, selected_project) {
-    shiny::observeEvent(input[[save_form_UI_ID]], {
-      variables <- sapply(form$variables, function(x) { x })
+  list(
+    function(input, output, session, project_variables) {
       
-      data_types <- sapply(form$data_types, get_save_data_type_from_form_data_type)
-      
-      values <- sapply(form$variables,
-                       function(variable, form_name) {
-                         paste(as.character(input[[get_UI_element_ID(form_name, variable)]]), collapse = CHOICES_SEPARATOR)
-                       },
-                       form$name)
-      
-      
-      form_data <- data.frame(variable = variables,
-                              data_type = data_types,
-                              value = values)
-      
-      if (current_step() == STANDARD_LAUNCH_PAGE_STEP_NAME) {
-        attempt_name <- input[[get_UI_element_ID(STANDARD_LAUNCH_PAGE_FORM_NAME, "Attempt Name")]]
-      } else {
-        attempt_name <- selected_project()$STEPS[[current_step()]]$prior_steps[[STANDARD_LAUNCH_PAGE_STEP_NAME]]$`Attempt Name`
-      }
-      
-      step_directory <- get_step_directory(attempt_name, current_step())
-      write.csv.default(form_data, paste0(step_directory, form$name, ".csv"))
+      shiny::observeEvent(input[[get_UI_element_ID(form$name, FORM_NEXT_UI_ID)]], {
+        variables <- sapply(form$variables, function(x) { x })
+        
+        data_types <- sapply(form$data_types, get_save_data_type_from_form_data_type)
+        
+        values <- sapply(form$variables,
+                         function(variable, form_name) {
+                           paste(as.character(input[[get_UI_element_ID(form_name, variable)]]), collapse = CHOICES_SEPARATOR)
+                         },
+                         form$name)
+        
+        
+        form_data <- data.frame(variable = variables,
+                                data_type = data_types,
+                                value = values)
+        
+        if (project_variables$current_step == STANDARD_LAUNCH_PAGE_STEP_NAME) {
+          attempt_name <- input[[get_UI_element_ID(STANDARD_LAUNCH_PAGE_FORM_NAME, "Attempt Name")]]
+        } else {
+          attempt_name <- project_variables$selected_project$STEPS[[project_variables$current_step]]$prior_steps[[STANDARD_LAUNCH_PAGE_STEP_NAME]]$`Attempt Name`
+        }
+        
+        step_directory <- get_step_directory(attempt_name, project_variables$current_step)
+        write.csv.default(form_data, paste0(step_directory, form$name, ".csv"))
+        
+        project_variables[[get_UI_element_ID(form$name, FORM_NEXT_UI_ID, AB_WAS_JUST_CLICKED)]] <- TRUE
+      })
+    },
+    
+    function(input, output, session, project_variables) {
+      shiny::observeEvent(input[[get_UI_element_ID(form$name, FORM_PREVIOUS_UI_ID)]], {
+        project_variables[[get_UI_element_ID(form$name, FORM_PREVIOUS_UI_ID, AB_WAS_JUST_CLICKED)]] <- TRUE
+      })
     })
-  })
 }
 
-
-
-
-add_visual_resources <- function() {
-  log_action(action_category = "Setup", action = "Adding visual resources", reference = NULL)
-  
-  lang = getOption("highcharter.lang")
-  lang$numericSymbols <- c("k", "M", "B")
-  options("highcharter.lang" = lang)
-  
-  shiny::addResourcePath("www", get_system_file("www", package_name = PACKAGE_NAME))
-}
 
 get_system_file <- function(x, package_name) {
   return(system.file(x, package = package_name))
@@ -189,67 +212,75 @@ get_choices <- function(x) {
 get_standard_launch_page <- function(next_step) {
   force(next_step)
   
-  next_step_UI_ID <- get_UI_element_ID(STANDARD_LAUNCH_PAGE_FORM_NAME, "next")
-  
   standard_launch_page_form <- get_form_from_specification_file(file_name = "./data-raw/Standard Files/standard_launch_page.csv",
-                                                                form_name = STANDARD_LAUNCH_PAGE_FORM_NAME,
-                                                                save_form_UI_ID = next_step_UI_ID)
+                                                                name = STANDARD_LAUNCH_PAGE_FORM_NAME,
+                                                                previous_step = "jack",
+                                                                next_step = "step_1")
   
   refresh_prior_attempts_AB_ID <- get_UI_element_ID(STANDARD_LAUNCH_PAGE_FORM_NAME, "refresh_prior_attempts")
   
   prior_attempt_UI_ID <- get_UI_element_ID(STANDARD_LAUNCH_PAGE_FORM_NAME, "Load Prior Attempt")
-
+  # Must match the "Load Prior Attempt" label ("variable" field) of the form, per file:
+  # "./data-raw/Standard Files/standard_launch_page.csv
+  
+  next_step_was_just_clicked <- get_UI_element_ID(STANDARD_LAUNCH_PAGE_FORM_NAME, FORM_NEXT_UI_ID, AB_WAS_JUST_CLICKED)
   
   list(
-    name = "Load Prior Attempt",
+    name = standard_launch_page_form$name,
     UI = shiny::mainPanel(
       width = 6,
       standard_launch_page_form$UI,
-      shiny::actionButton(refresh_prior_attempts_AB_ID, "Refresh Prior Attempts") ,
-      shiny::actionButton(next_step_UI_ID, "Next")
+      shiny::actionButton(refresh_prior_attempts_AB_ID, "Refresh Prior Attempts")
     ),
-    server_functions = list(standard_launch_page_form$server_save_function,
-                            function(input, output, session, current_attempt, current_step, selected_project) {
-                              shiny::observeEvent(input[[next_step_UI_ID]], {
-                                meta_data <- tibble::tribble(
-                                  ~variable, ~data_type, ~value,
-                                  "date_time", "character", Sys.time()
-                                )
-                                
-                                attempt_name <- input[[get_UI_element_ID(STANDARD_LAUNCH_PAGE_FORM_NAME, "Attempt Name")]]
-                                step_directory <- get_step_directory(attempt_name, current_step())
-                                write.csv.default(meta_data, paste0(step_directory, "meta_data.csv"))
-                                
-                                # Load prior attempt
-                                if (input[[get_UI_element_ID(STANDARD_LAUNCH_PAGE_FORM_NAME, "Load Prior Attempt")]] != DO_NOT_LOAD_PRIOR_ATTEMPT) {
-                                  the_project <- selected_project()
-                                  if (is.null(the_project$STEPS[[current_step()]]$saved_step)) {
-                                    the_project$STEPS[[current_step()]]$saved_step <- list()
-                                  }
-                                  the_project$STEPS[[current_step()]]$saved_step$meta_data <- meta_data
+    server_functions = append(standard_launch_page_form$server_functions,
+                              list(
+                                function(input, output, session, project_variables) {
+                                  shiny::observeEvent(project_variables[[next_step_was_just_clicked]], {
+                                    if (project_variables[[next_step_was_just_clicked]]) {
+                                      meta_data <- tibble::tribble(
+                                        ~variable, ~data_type, ~value,
+                                        "date_time", "character", Sys.time()
+                                      )
+                                      
+                                      attempt_name <- input[[get_UI_element_ID(STANDARD_LAUNCH_PAGE_FORM_NAME, "Attempt Name")]]
+                                      step_directory <- get_step_directory(attempt_name, project_variables$current_step)
+                                      write.csv.default(meta_data, paste0(step_directory, "meta_data.csv"))
+                                      
+                                      # Load prior attempt
+                                      if (input[[get_UI_element_ID(STANDARD_LAUNCH_PAGE_FORM_NAME, "Load Prior Attempt")]] != DO_NOT_LOAD_PRIOR_ATTEMPT) {
+                                        the_project <- project_variables$selected_project
+                                        if (is.null(the_project$STEPS[[project_variables$current_step]]$saved_step)) {
+                                          the_project$STEPS[[project_variables$current_step]]$saved_step <- list()
+                                        }
+                                        the_project$STEPS[[project_variables$current_step]]$saved_step$meta_data <- meta_data
+                                        
+                                        project_variables$selected_project <- the_project
+                                      }
+                                      
+                                      # project_variables$selected_project$STEPS[[project_variables$current_step]]$prior_steps <- list()
+                                      # project_variables$selected_project$STEPS[[project_variables$current_step]]$prior_steps[[STANDARD_LAUNCH_PAGE_STEP_NAME]]
+                                      
+                                      project_variables$current_step <- next_step
+                                      
+                                      project_variables[[next_step_was_just_clicked]] <- FALSE
+                                    }
+                                  })
                                   
-                                  selected_project(the_project)
+                                  
+                                },
+                                function(input, output, session, project_variables) {
+                                  shiny::observeEvent(input[[refresh_prior_attempts_AB_ID]], {
+                                    prior_attempts <- get_prior_attempts()
+
+                                    shiny::updateSelectInput(session,
+                                                             prior_attempt_UI_ID,
+                                                             choices = prior_attempts,
+                                                             selected = prior_attempts[1])
+                                  })
                                 }
-                                
-                                # selected_project()$STEPS[[current_step()]]$prior_steps <- list()
-                                # selected_project()$STEPS[[current_step()]]$prior_steps[[STANDARD_LAUNCH_PAGE_STEP_NAME]]
-                                
-                                current_step(next_step)
-                              })
-                              
-                              shiny::observeEvent(input[[refresh_prior_attempts_AB_ID]], {
-                                prior_attempts <- get_prior_attempts()
-                                
-                                shiny::updateSelectInput(session,
-                                                         prior_attempt_UI_ID,
-                                                         choices = prior_attempts,
-                                                         selected = prior_attempts[1])
-                              })
-                            }),
-    next_step_UI_ID = NULL,
-    next_step = NULL,
-    previous_step_UI_ID = NULL,
-    previous_step = NULL
+                              )),
+    previous_step = standard_launch_page_form$previous_step,
+    next_step = standard_launch_page_form$next_step
   )
 }
 
