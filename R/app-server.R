@@ -6,6 +6,8 @@ app_server <- function(input, output, session) {
   has_loaded_project <- shiny::reactiveVal(FALSE)
   project_variables <- shiny::reactiveValues(selected_project = NULL,
                                              current_step = NULL,
+                                             current_attempt = NULL,
+                                             new_step_has_been_loaded = FALSE,
                                              prior_attempts = get_prior_attempts())
   
   
@@ -65,6 +67,16 @@ app_server <- function(input, output, session) {
   shiny::observeEvent(project_variables$current_step, {
     output[[CURRENT_STEP_NAME_UI_ID]] <- shiny::renderText({ project_variables$selected_project$STEPS[[project_variables$current_step]]$name})
     output[[CURRENT_STEP_UI_ID]] <- shiny::renderUI({ project_variables$selected_project$STEPS[[project_variables$current_step]]$UI })
+    
+    project_variables$new_step_has_been_loaded <- TRUE
   })
   
+  shiny::observeEvent(project_variables$new_step_has_been_loaded, {
+    if (project_variables$new_step_has_been_loaded) {
+      # Pre-load the step if applicable
+      preload_step(current_attempt = project_variables$current_attempt,
+                   current_step = project_variables$selected_project$STEPS[[project_variables$current_step]]$name)
+      project_variables$new_step_has_been_loaded <- FALSE
+    }
+  })
 }

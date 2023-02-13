@@ -1,0 +1,5 @@
+variable;data_type;default_value;choices;is_function;min;max;step
+Analyst Name;character;;;;;
+Date of Analysis;date;;;;;
+Attempt Name;character;;;;;
+Load Prior Attempt;select;;;get_prior_attempts_for_form();;

@@ -1,12 +1,11 @@
 get_form_from_specification_file <- function(file_name,
-                                             name,
                                              next_step,
                                              previous_step) {
   DF <- read.csv.default(file_name)
   
   the_form <- list()
   
-  the_form$name <- name
+  the_form$name <- extract_form_name_from_file_name(file_name)
   the_form$next_step <- next_step
   the_form$previous_step <- previous_step
   
@@ -15,19 +14,19 @@ get_form_from_specification_file <- function(file_name,
     the_data_type <- DF[DF_entry, "data_type"]
     data_type_function <- get_data_type_function(the_data_type)
     the_default_value <- data_type_function(DF[DF_entry, "default_value"])
+    the_choices <- get_choices(DF[DF_entry, "choices"])
     the_is_function <- DF[DF_entry, "is_function"]
-    default_value_is_a_function <- ifelse(is.na(the_is_function), FALSE, ifelse(nchar(the_is_function) == 0, FALSE, the_is_function == "TRUE"))
+    the_choices_is_a_function <- ifelse(is.na(the_is_function), FALSE, ifelse(nchar(the_is_function) == 0, FALSE, TRUE))
     
-    if (default_value_is_a_function) {
-      the_default_value <- eval(parse(text = the_default_value))
+    if (the_choices_is_a_function) {
+      the_choices <- get_choices(eval(parse(text = the_is_function)))
     }
     
     the_min <- data_type_function(DF[DF_entry, "min"])
     the_max <- data_type_function(DF[DF_entry, "max"])
     the_step <- data_type_function(DF[DF_entry, "step"])
-    the_choices <- get_choices(the_default_value)
-    
-    UI_element_id <- get_UI_element_ID(name, the_variable)
+
+    UI_element_id <- get_UI_element_ID(the_form$name, the_variable)
     
     the_form$server_functions <- list()
     
@@ -42,11 +41,11 @@ get_form_from_specification_file <- function(file_name,
     } else if (the_data_type == "slider") {
       the_element <- shiny::sliderInput(UI_element_id, label = the_variable, min = the_min, max = the_max, value = the_default_value, step = the_step)
     } else if (the_data_type == "select") {
-      the_element <- shiny::selectInput(UI_element_id, label = the_variable, choices = the_choices, selected = the_choices[1])
+      the_element <- shiny::selectInput(UI_element_id, label = the_variable, choices = the_choices, selected = the_default_value)
     } else if (the_data_type == "checkbox") {
-      the_element <- shiny::checkboxGroupInput(UI_element_id, label = the_variable, choices = the_choices, selected = the_choices[1])
+      the_element <- shiny::checkboxGroupInput(UI_element_id, label = the_variable, choices = the_choices, selected = the_default_value)
     } else if (the_data_type == "radiobutton") {
-      the_element <- shiny::radioButtons(UI_element_id, label = the_variable, choices = the_choices, selected = the_choices[1])
+      the_element <- shiny::radioButtons(UI_element_id, label = the_variable, choices = the_choices, selected = the_default_value)
     } else if (the_data_type == "file") {
       the_element <- shiny::fileInput(UI_element_id, label = the_variable, multiple = TRUE)
       the_form$server_functions <- append(the_form$server_functions,
@@ -70,8 +69,14 @@ get_form_from_specification_file <- function(file_name,
   }
   
   the_form$UI[[length(the_form$UI) + 1]] <- shiny::hr()
-  the_form$UI[[length(the_form$UI) + 1]] <- shiny::actionButton(get_UI_element_ID(name, FORM_PREVIOUS_UI_ID), "Previous")
-  the_form$UI[[length(the_form$UI) + 1]] <- shiny::actionButton(get_UI_element_ID(name, FORM_NEXT_UI_ID), "Next")
+  
+  if (!is.null(the_form$previous_step)) {
+    the_form$UI[[length(the_form$UI) + 1]] <- shiny::actionButton(get_UI_element_ID(the_form$name, FORM_PREVIOUS_UI_ID), "Previous") 
+  }
+  
+  if (!is.null(the_form$next_step)) {
+    the_form$UI[[length(the_form$UI) + 1]] <- shiny::actionButton(get_UI_element_ID(the_form$name, FORM_NEXT_UI_ID), "Next")
+  }
   
   the_form$server_functions <- append(the_form$server_functions,
                                       get_save_form_server_function(the_form))
@@ -152,14 +157,15 @@ get_save_form_server_function <- function(form) {
                                 data_type = data_types,
                                 value = values)
         
-        if (project_variables$current_step == STANDARD_LAUNCH_PAGE_STEP_NAME) {
-          attempt_name <- input[[get_UI_element_ID(STANDARD_LAUNCH_PAGE_FORM_NAME, "Attempt Name")]]
-        } else {
-          attempt_name <- project_variables$selected_project$STEPS[[project_variables$current_step]]$prior_steps[[STANDARD_LAUNCH_PAGE_STEP_NAME]]$`Attempt Name`
+        
+        if (form$name == STANDARD_LAUNCH_PAGE_FORM_NAME) {
+          project_variables$current_attempt <- input[[get_UI_element_ID(form$name, "Attempt Name")]]
         }
         
-        step_directory <- get_step_directory(attempt_name, project_variables$current_step)
+        step_directory <- get_step_directory(project_variables$current_attempt, project_variables$current_step)
         write.csv.default(form_data, paste0(step_directory, form$name, ".csv"))
+        
+        project_variables$selected_project$STEPS[[project_variables$current_step]]$cached_data <- form_data
         
         project_variables[[get_UI_element_ID(form$name, FORM_NEXT_UI_ID, AB_WAS_JUST_CLICKED)]] <- TRUE
       })
@@ -212,9 +218,8 @@ get_choices <- function(x) {
 get_standard_launch_page <- function(next_step) {
   force(next_step)
   
-  standard_launch_page_form <- get_form_from_specification_file(file_name = "./data-raw/Standard Files/standard_launch_page.csv",
-                                                                name = STANDARD_LAUNCH_PAGE_FORM_NAME,
-                                                                previous_step = "jack",
+  standard_launch_page_form <- get_form_from_specification_file(file_name = "./data-raw/Standard Files/Load Prior Attempt.csv",
+                                                                previous_step = NULL,
                                                                 next_step = "step_1")
   
   refresh_prior_attempts_AB_ID <- get_UI_element_ID(STANDARD_LAUNCH_PAGE_FORM_NAME, "refresh_prior_attempts")
@@ -242,23 +247,16 @@ get_standard_launch_page <- function(next_step) {
                                         "date_time", "character", Sys.time()
                                       )
                                       
-                                      attempt_name <- input[[get_UI_element_ID(STANDARD_LAUNCH_PAGE_FORM_NAME, "Attempt Name")]]
-                                      step_directory <- get_step_directory(attempt_name, project_variables$current_step)
+                                      step_directory <- get_step_directory(project_variables$current_attempt, project_variables$current_step)
                                       write.csv.default(meta_data, paste0(step_directory, "meta_data.csv"))
                                       
                                       # Load prior attempt
-                                      if (input[[get_UI_element_ID(STANDARD_LAUNCH_PAGE_FORM_NAME, "Load Prior Attempt")]] != DO_NOT_LOAD_PRIOR_ATTEMPT) {
-                                        the_project <- project_variables$selected_project
-                                        if (is.null(the_project$STEPS[[project_variables$current_step]]$saved_step)) {
-                                          the_project$STEPS[[project_variables$current_step]]$saved_step <- list()
-                                        }
-                                        the_project$STEPS[[project_variables$current_step]]$saved_step$meta_data <- meta_data
-                                        
-                                        project_variables$selected_project <- the_project
+                                      selected_prior_attempt_name <- input[[prior_attempt_UI_ID]]
+                                      if (selected_prior_attempt_name != DO_NOT_LOAD_PRIOR_ATTEMPT) {
+                                        load_prior_attempt_steps(selected_prior_attempt_name = selected_prior_attempt_name,
+                                                                 current_attempt_name = project_variables$current_attempt,
+                                                                 current_attempt_steps = project_variables$selected_project$STEPS)
                                       }
-                                      
-                                      # project_variables$selected_project$STEPS[[project_variables$current_step]]$prior_steps <- list()
-                                      # project_variables$selected_project$STEPS[[project_variables$current_step]]$prior_steps[[STANDARD_LAUNCH_PAGE_STEP_NAME]]
                                       
                                       project_variables$current_step <- next_step
                                       
@@ -303,6 +301,19 @@ get_prior_attempts_for_form <- function() {
   paste(as.character(get_prior_attempts()), collapse = CHOICES_SEPARATOR)
 }
 
+load_prior_attempt_steps <- function(selected_prior_attempt_name,
+                                     current_attempt_name,
+                                     current_attempt_steps) {
+  step_names <- list.dirs(path = paste0(ATTEMPTS_DIRECTORY, "/", selected_prior_attempt_name), full.names = FALSE, recursive = FALSE)
+  for (step_name in step_names) {
+    if (step_name != STANDARD_LAUNCH_PAGE_STEP_NAME) {
+      prior_attempt_step_directory <- get_step_directory(selected_prior_attempt_name, step_name)
+      current_attempt_step_directory <- paste0(ATTEMPTS_DIRECTORY, "/", current_attempt_name, "/")
+      file.copy(prior_attempt_step_directory, current_attempt_step_directory, recursive = TRUE)
+    }
+  }
+}
+
 get_step_directory <- function(attempt, step) {
   dir.create(paste0(ATTEMPTS_DIRECTORY, "/", attempt), showWarnings = FALSE)
   dir.create(paste0(ATTEMPTS_DIRECTORY, "/", attempt, "/", step), showWarnings = FALSE)
@@ -323,4 +334,17 @@ get_save_data_type_from_form_data_type <- function(form_data_type) {
 
 get_first_step <- function(steps) {
   names(steps)[which(sapply(steps, function(x) { x$previous_step }) == STANDARD_LAUNCH_PAGE_STEP_NAME)]
+}
+
+
+preload_step <- function(current_attempt, current_step) {
+  # Look for pre-loaded step and update UI elements if found
+  if (!is.null(current_attempt)) {
+    preloaded_step_files <- list.files(path = paste0(ATTEMPTS_DIRECTORY, "/", current_attempt, "/", current_step, "/"), full.names = TRUE, recursive = FALSE) 
+    print(preloaded_step_files)
+  }
+}
+
+extract_form_name_from_file_name <- function(file_name) {
+  tools::file_path_sans_ext(basename(file_name))
 }
