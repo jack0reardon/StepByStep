@@ -26,39 +26,30 @@ get_form_from_specification_file <- function(file_name,
     the_max <- data_type_function(DF[DF_entry, "max"])
     the_step <- data_type_function(DF[DF_entry, "step"])
 
-    UI_element_id <- get_UI_element_ID(the_form$name, the_variable)
+    UI_element_ID <- get_UI_element_ID(the_form$name, the_variable)
     
     the_form$server_functions <- list()
     
     if (the_data_type == "character") {
-      the_element <- shiny::textInput(UI_element_id, label = the_variable, value = the_default_value)
+      the_element <- shiny::textInput(UI_element_ID, label = the_variable, value = the_default_value)
     } else if (the_data_type == "numeric") {
-      the_element <- shiny::numericInput(UI_element_id, label = the_variable, value = the_default_value, min = the_min, max = the_max, step = the_step)
+      the_element <- shiny::numericInput(UI_element_ID, label = the_variable, value = the_default_value, min = the_min, max = the_max, step = the_step)
     } else if (the_data_type == "date") {
-      the_element <- shiny::dateInput(UI_element_id, label = the_variable)
+      the_element <- shiny::dateInput(UI_element_ID, label = the_variable)
     } else if (the_data_type == "freeform") {
-      the_element <- shiny::textAreaInput(UI_element_id, label = the_variable)
+      the_element <- shiny::textAreaInput(UI_element_ID, label = the_variable)
     } else if (the_data_type == "slider") {
-      the_element <- shiny::sliderInput(UI_element_id, label = the_variable, min = the_min, max = the_max, value = the_default_value, step = the_step)
+      the_element <- shiny::sliderInput(UI_element_ID, label = the_variable, min = the_min, max = the_max, value = the_default_value, step = the_step)
     } else if (the_data_type == "select") {
-      the_element <- shiny::selectInput(UI_element_id, label = the_variable, choices = the_choices, selected = the_default_value)
+      the_element <- shiny::selectInput(UI_element_ID, label = the_variable, choices = the_choices, selected = the_default_value)
     } else if (the_data_type == "checkbox") {
-      the_element <- shiny::checkboxGroupInput(UI_element_id, label = the_variable, choices = the_choices, selected = the_default_value)
+      the_element <- shiny::checkboxGroupInput(UI_element_ID, label = the_variable, choices = the_choices, selected = the_default_value)
     } else if (the_data_type == "radiobutton") {
-      the_element <- shiny::radioButtons(UI_element_id, label = the_variable, choices = the_choices, selected = the_default_value)
+      the_element <- shiny::radioButtons(UI_element_ID, label = the_variable, choices = the_choices, selected = the_default_value)
     } else if (the_data_type == "file") {
-      the_element <- shiny::fileInput(UI_element_id, label = the_variable, multiple = TRUE)
-      the_form$server_functions <- append(the_form$server_functions,
-                                          function(input, output, session, project_variables) {
-                                            list(
-                                              shiny::observeEvent(input[[UI_element_id]], {
-                                                output[["jack"]] <- shiny::renderTable(input[[UI_element_id]])
-                                              }),
-                                              shiny::observeEvent(input[[UI_element_id]], {
-                                                output[["MY_TEXT"]] <- shiny::renderText(paste(readLines(input[[UI_element_id]]$datapath), collapse = "        \n"))
-                                              })
-                                            )
-                                          })
+      the_element <- shiny::fileInput(UI_element_ID, label = the_variable, multiple = TRUE)
+    } else if (the_data_type == "help") {
+      the_element <- shiny::helpText(the_default_value)
     } else {
       stop(paste0("Error: Form ", file_name, " has unrecognised data type ", the_data_type))
     }
@@ -93,7 +84,7 @@ read.csv.default <- function(file_name, ...) {
 }
 
 write.csv.default <- function(data, file_name, ...) {
-  write.csv(data, file_name, row.names = FALSE, quote = FALSE, ...)
+  write.table(data, file_name, row.names = FALSE, quote = FALSE, sep = ";", ...)
 }
 
 listify_DF <- function(DF) {
@@ -125,7 +116,7 @@ as_character <- function(x) {
   if (is.na(x) | is.null(x)) {
     ""
   } else {
-    as.character(x)
+    get_choices(as.character(x))
   }
 }
 
@@ -144,7 +135,7 @@ get_save_form_server_function <- function(form) {
       shiny::observeEvent(input[[get_UI_element_ID(form$name, FORM_NEXT_UI_ID)]], {
         variables <- sapply(form$variables, function(x) { x })
         
-        data_types <- sapply(form$data_types, get_save_data_type_from_form_data_type)
+        data_types <- sapply(form$data_types, function(x) { x })
         
         values <- sapply(form$variables,
                          function(variable, form_name) {
@@ -226,7 +217,7 @@ get_standard_launch_page <- function(next_step) {
   
   prior_attempt_UI_ID <- get_UI_element_ID(STANDARD_LAUNCH_PAGE_FORM_NAME, "Load Prior Attempt")
   # Must match the "Load Prior Attempt" label ("variable" field) of the form, per file:
-  # "./data-raw/Standard Files/standard_launch_page.csv
+  # "./data-raw/Standard Files/Load Prior Attempt.csv"
   
   next_step_was_just_clicked <- get_UI_element_ID(STANDARD_LAUNCH_PAGE_FORM_NAME, FORM_NEXT_UI_ID, AB_WAS_JUST_CLICKED)
   
@@ -320,28 +311,53 @@ get_step_directory <- function(attempt, step) {
   return(paste0(ATTEMPTS_DIRECTORY, "/", attempt, "/", step, "/"))
 }
 
-
-
-get_save_data_type_from_form_data_type <- function(form_data_type) {
-  if (form_data_type %in% c("character", "date", "freeform", "select", "checkbox", "radiobutton")) {
-    return("character")
-  } else if (form_data_type %in% c("numeric", "slider")) {
-    return("numeric")
-  } else {
-    return("")
-  }
-}
-
 get_first_step <- function(steps) {
   names(steps)[which(sapply(steps, function(x) { x$previous_step }) == STANDARD_LAUNCH_PAGE_STEP_NAME)]
 }
 
 
-preload_step <- function(current_attempt, current_step) {
+preload_step <- function(session, current_attempt, current_step) {
   # Look for pre-loaded step and update UI elements if found
   if (!is.null(current_attempt)) {
     preloaded_step_files <- list.files(path = paste0(ATTEMPTS_DIRECTORY, "/", current_attempt, "/", current_step, "/"), full.names = TRUE, recursive = FALSE) 
-    print(preloaded_step_files)
+
+    for (preloaded_step_file in preloaded_step_files) {
+      DF <- read.csv.default(preloaded_step_file)
+      form_name <- extract_form_name_from_file_name(preloaded_step_file)
+      
+      for (DF_entry in 1:nrow(DF)) {
+        the_variable <- DF[DF_entry, "variable"]
+        the_data_type <- DF[DF_entry, "data_type"]
+        data_type_function <- get_data_type_function(the_data_type)
+        the_value <- data_type_function(DF[DF_entry, "value"])
+        
+        UI_element_ID <- get_UI_element_ID(form_name, the_variable)
+        
+        if (the_data_type == "character") {
+          shiny::updateTextInput(session, UI_element_ID, value = the_value)
+        } else if (the_data_type == "numeric") {
+          shiny::updateNumericInput(session, UI_element_ID, value = the_value)
+        } else if (the_data_type == "date") {
+          shiny::updateDateInput(session, UI_element_ID, value = the_value)
+        } else if (the_data_type == "freeform") {
+          shiny::updateTextAreaInput(session, UI_element_ID, value = the_value)
+        } else if (the_data_type == "slider") {
+          shiny::updateSliderInput(session, UI_element_ID, value = the_value)
+        } else if (the_data_type == "select") {
+          shiny::updateSelectInput(session, UI_element_ID, selected = the_value)
+        } else if (the_data_type == "checkbox") {
+          shiny::updateCheckboxGroupInput(session, UI_element_ID, selected = the_value)
+        } else if (the_data_type == "radiobutton") {
+          shiny::updateRadioButtons(session, UI_element_ID, selected = the_value)
+        } else if (the_data_type == "file") {
+          # Do nothing - fileInput loads files to a temporary location and the information lost each attempt
+        } else if (the_data_type == "help") {
+          # Do nothing
+        } else {
+          stop(paste0("Error: Form ", form_name, " has unrecognised data type ", the_data_type))
+        }
+      }
+    }
   }
 }
 

@@ -12,6 +12,9 @@ DUMMY_PROJECT$STEPS <- list(
                                             next_step = "step_2"),
   step_2 = get_form_from_specification_file(file_name = "./data-raw/DUMMY_PROJECT/Steps/Step 2 - Project Details.csv",
                                             previous_step = "step_1",
+                                            next_step = "step_3"),
+  step_3 = get_form_from_specification_file(file_name = "./data-raw/DUMMY_PROJECT/Steps/Conclusion.csv",
+                                            previous_step = "step_2",
                                             next_step = NULL)
 )
 
