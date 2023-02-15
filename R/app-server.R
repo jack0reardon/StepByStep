@@ -23,6 +23,7 @@ app_server <- function(input, output, session) {
              next_step_was_just_clicked <- get_UI_element_ID(x$name, FORM_NEXT_UI_ID, AB_WAS_JUST_CLICKED)
              shiny::observeEvent(project_variables[[next_step_was_just_clicked]], {
                if (project_variables[[next_step_was_just_clicked]]) {
+                 project_variables$selected_project$STEPS[[project_variables$current_step]]$next_step_function()
                  project_variables$current_step <- x$next_step
                  project_variables[[next_step_was_just_clicked]] <- FALSE
                }
@@ -32,12 +33,37 @@ app_server <- function(input, output, session) {
     lapply(the_project$STEPS,
            function(x) {
              previous_step_was_just_clicked <- get_UI_element_ID(x$name, FORM_PREVIOUS_UI_ID, AB_WAS_JUST_CLICKED)
-             shiny::observeEvent(project_variables[[previous_step_was_just_clicked]], {
-               if (project_variables[[previous_step_was_just_clicked]]) {
+             confirm_UI_ID <- get_UI_element_ID(previous_step_was_just_clicked, "confirm")
+             
+             list(
+               shiny::observeEvent(project_variables[[previous_step_was_just_clicked]], {
+                 if (project_variables[[previous_step_was_just_clicked]]) {
+                   project_variables[[previous_step_was_just_clicked]] <- FALSE
+                   shiny::showModal(
+                     shiny::modalDialog(
+                       title = "Confirm",
+                       "Returning to the previous step will clear current input and will not be saved. Continue?",
+                       footer = shiny::tagList(
+                         shiny::actionButton(confirm_UI_ID, "Confirm"),
+                         shiny::actionButton("cancel", "Cancel"),
+                       )
+                     ))
+                   
+                 }
+               }),
+               
+               shiny::observeEvent(input[[confirm_UI_ID]], {
+                 project_variables$selected_project$STEPS[[project_variables$current_step]]$previous_step_function()
                  project_variables$current_step <- x$previous_step
-                 project_variables[[previous_step_was_just_clicked]] <- FALSE
-               }
-             })
+                 delete_loaded_files_from_step(project_variables$current_attempt, project_variables$current_step)
+                 
+                 shiny::removeModal()
+               }),
+               
+               shiny::observeEvent(input$cancel, {
+                 shiny::removeModal()
+               })
+             )
            })
     
     first_step <- get_first_step(the_project$STEPS)

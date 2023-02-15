@@ -1,6 +1,8 @@
 get_form_from_specification_file <- function(file_name,
                                              next_step,
-                                             previous_step) {
+                                             previous_step,
+                                             next_step_function = do_nothing,
+                                             previous_step_function = do_nothing) {
   DF <- read.csv.default(file_name)
   
   the_form <- list()
@@ -61,18 +63,26 @@ get_form_from_specification_file <- function(file_name,
   
   the_form$UI[[length(the_form$UI) + 1]] <- shiny::hr()
   
-  if (!is.null(the_form$previous_step)) {
+  if (!is.na(the_form$previous_step)) {
     the_form$UI[[length(the_form$UI) + 1]] <- shiny::actionButton(get_UI_element_ID(the_form$name, FORM_PREVIOUS_UI_ID), "Previous") 
   }
   
-  if (!is.null(the_form$next_step)) {
+  if (!is.na(the_form$next_step)) {
     the_form$UI[[length(the_form$UI) + 1]] <- shiny::actionButton(get_UI_element_ID(the_form$name, FORM_NEXT_UI_ID), "Next")
   }
   
   the_form$server_functions <- append(the_form$server_functions,
                                       get_save_form_server_function(the_form))
   
+  the_form$next_step_function <- next_step_function
+  the_form$previous_step_function <- previous_step_function
+  
   return(the_form)
+}
+
+do_nothing <- function() {
+  # Do nothing!
+  return(NA)
 }
 
 read_specification_file <- function(file_name) {
@@ -156,6 +166,19 @@ get_save_form_server_function <- function(form) {
         step_directory <- get_step_directory(project_variables$current_attempt, project_variables$current_step)
         write.csv.default(form_data, paste0(step_directory, form$name, ".csv"))
         
+        # Save any fileInput files loaded by the user
+        loaded_files_directory <- paste0(step_directory, "loaded_files")
+        for (variable_index in which(data_types == "file")) {
+          variable <- variables[variable_index]
+          loaded_file <- input[[get_UI_element_ID(form$name, variable)]]
+          if (!is.null(loaded_file)) {
+            dir.create(loaded_files_directory, showWarnings = FALSE)
+            file.copy(loaded_file$datapath, loaded_files_directory, recursive = FALSE)
+            file.rename(paste0(loaded_files_directory, "/", basename(loaded_file$datapath)), paste0(loaded_files_directory, "/", loaded_file$name))
+          }
+          
+        }
+        
         project_variables$selected_project$STEPS[[project_variables$current_step]]$cached_data <- form_data
         
         project_variables[[get_UI_element_ID(form$name, FORM_NEXT_UI_ID, AB_WAS_JUST_CLICKED)]] <- TRUE
@@ -169,6 +192,12 @@ get_save_form_server_function <- function(form) {
     })
 }
 
+
+delete_loaded_files_from_step <- function(current_attempt, current_step) {
+  step_directory <- get_step_directory(current_attempt, current_step)
+  loaded_files_directory <- paste0(step_directory, "loaded_files")
+  unlink(loaded_files_directory, recursive = TRUE)
+}
 
 get_system_file <- function(x, package_name) {
   return(system.file(x, package = package_name))
@@ -210,8 +239,8 @@ get_standard_launch_page <- function(next_step) {
   force(next_step)
   
   standard_launch_page_form <- get_form_from_specification_file(file_name = "./data-raw/Standard Files/Load Prior Attempt.csv",
-                                                                previous_step = NULL,
-                                                                next_step = "step_1")
+                                                                previous_step = NA,
+                                                                next_step = next_step)
   
   refresh_prior_attempts_AB_ID <- get_UI_element_ID(STANDARD_LAUNCH_PAGE_FORM_NAME, "refresh_prior_attempts")
   
@@ -269,7 +298,9 @@ get_standard_launch_page <- function(next_step) {
                                 }
                               )),
     previous_step = standard_launch_page_form$previous_step,
-    next_step = standard_launch_page_form$next_step
+    next_step = standard_launch_page_form$next_step,
+    next_step_function = do_nothing,
+    previous_step_function = do_nothing
   )
 }
 
@@ -317,9 +348,11 @@ get_first_step <- function(steps) {
 
 
 preload_step <- function(session, current_attempt, current_step) {
+  
   # Look for pre-loaded step and update UI elements if found
   if (!is.null(current_attempt)) {
-    preloaded_step_files <- list.files(path = paste0(ATTEMPTS_DIRECTORY, "/", current_attempt, "/", current_step, "/"), full.names = TRUE, recursive = FALSE) 
+    current_step_path <- paste0(ATTEMPTS_DIRECTORY, "/", current_attempt, "/", current_step)
+    preloaded_step_files <- setdiff(list.files(current_step_path, recursive = FALSE, full.names = TRUE), list.dirs(current_step_path, recursive = FALSE, full.names = TRUE))
 
     for (preloaded_step_file in preloaded_step_files) {
       DF <- read.csv.default(preloaded_step_file)
