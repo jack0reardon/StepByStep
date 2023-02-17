@@ -1,4 +1,4 @@
 variable;data_type;value
-project_title;character;Dummy Title
-short_project_description;character;This is a dummy description for the dummy project.
+project_title;character;General Insurance Pty. Ltd.
+short_project_description;character;Data prep process
 version;character;v1.0

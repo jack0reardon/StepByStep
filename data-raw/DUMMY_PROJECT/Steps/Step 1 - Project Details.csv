@@ -1,0 +1,10 @@
+variable;data_type;default_value;choices;is_function;min;max;step
+Client Name;character;;;;;;
+Project Name;character;;;;;;
+As of;date;;;;;;
+Prior analysis date;date;;;;;;
+Prior analysis spreadsheet;file;;;;;;
+LOB;select;;Workers' Compensation:Professional Liability:Automobile Liability:Climate Risk;;;;
+Analysis type;radiobutton;;Full Review:AvE:Update;;;;
+Default Deductible;slider;100000;;;0;1000000;10000
+Notes;freeform;;;;;;

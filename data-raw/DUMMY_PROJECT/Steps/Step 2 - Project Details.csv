@@ -1,4 +1,0 @@
-variable;data_type;default_value;choices;is_function;min;max;step
-Project Name;character;;;;;
-As of;date;;;;;;
-Version Number;numeric;1;;;1;10;0.1

@@ -2,14 +2,17 @@
 ### RShiny scaffolding that takes a user through a logical sequence of steps
 
 Applications:
-1. Organised data cleansing exercise with user input required at each stage
-2. Guiding user through series of insights in their data
-3. Implementing a decision tree for formalising business decisions (eg. customer )
+- Organised data cleansing exercise with user input required at each stage
+- Guiding user through series of insights in their data
+- Implementing a decision tree for formalising business decisions (eg. call centre funnel)
 
 Features:
-1. Fully transparent by default: Everything is logged. The inputs and outputs of each step are tracked in csv files
-2. Divergent pathways: Depending on the outcome of one step, the user may be directed to something else on the next page.
-3. Customisable: Scaffold code is provided, customise each step as needed.
-4. Run locally or host publically: With minimal further configuration, publish on a public-facing website.
+1. Convert CSV files into forms for user entry in seconds
+2. Pre-fill fields by loading prior attempts
+3. Automatic navigation
+4. Customisable: Scaffold code is provided, customise each step as needed.
+5. Fully transparent by default: Everything is logged. Simple to use package making it quick and easy to get a project started.
+6. Divergent pathways: Depending on the outcome of one step, the user may be directed to something else on the next page.
+7. Run locally or host publically: With minimal further configuration, publish on a public-facing website.
 
-![The User Interface](/inst/www/screenshot_1.png)
+![The User Interface](/inst/www/Screenshot.png)
